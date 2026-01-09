@@ -1,0 +1,16 @@
+{
+  "short_name": "BBank",
+  "name": "Borislav Bank Supreme",
+  "icons": [
+    {
+      "src": "logo900.png",
+      "type": "image/png",
+      "sizes": "900x900"
+    }
+  ],
+  "start_url": "/School_Bank/",
+  "background_color": "#0b0e11",
+  "display": "standalone",
+  "scope": "/School_Bank/",
+  "theme_color": "#00d4ff"
+}
