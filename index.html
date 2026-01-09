@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BORISLAV BANK - SUPREME OVERLORD</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root { --blue: #0075ff; --glass: rgba(255, 255, 255, 0.05); }
+        body { background: #000; color: white; font-family: 'Plus Jakarta Sans', sans-serif; height: 100vh; overflow: hidden; }
+        .glass { background: var(--glass); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.1); border-radius: 28px; }
+        .input-box { background: #111; border: 1px solid #333; border-radius: 20px; padding: 18px; width: 100%; color: white; outline: none; transition: 0.3s; }
+        .input-box:focus { border-color: var(--blue); box-shadow: 0 0 15px rgba(0, 117, 255, 0.2); }
+        .btn-main { background: var(--blue); border-radius: 20px; padding: 18px; width: 100%; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
+        .btn-outline { border: 2px solid #333; border-radius: 20px; padding: 18px; width: 100%; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
+        .btn-outline:hover { border-color: white; }
+        .hidden { display: none !important; }
+        .gradient-text { background: linear-gradient(135deg, #fff 0%, var(--blue) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-screen" class="fixed inset-0 z-[1000] bg-black p-8 flex flex-col justify-center items-center text-center">
+        <div class="w-full max-w-sm">
+            <h1 class="text-4xl font-black gradient-text mb-10 italic uppercase tracking-tighter">BORISLAV BANK</h1>
+            <div class="space-y-4">
+                <input type="text" id="auth-name" placeholder="Име на потребител" class="input-box">
+                <input type="password" id="auth-pass" placeholder="Парола / Master ID" class="input-box">
+                
+                <div class="flex flex-col gap-3 mt-6">
+                    <button onclick="handleLogin()" class="btn-main shadow-lg shadow-blue-500/20">Вход</button>
+                    <button onclick="handleRegister()" class="btn-outline">Регистрация</button>
+                </div>
+            </div>
+            <p id="auth-error" class="mt-4 text-red-500 text-[10px] font-bold uppercase tracking-widest"></p>
+        </div>
+    </div>
+
+    <div id="bank-app" class="hidden flex flex-col h-full">
+        <nav class="p-6 flex justify-between items-center border-b border-white/5">
+            <div class="flex items-center gap-3">
+                <div id="user-avatar" class="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center font-black italic">?</div>
+                <div>
+                    <h2 id="dynamic-title" class="font-bold text-lg italic uppercase leading-none">Bank</h2>
+                    <p id="live-bal-nav" class="text-[10px] text-blue-500 font-black mt-1 uppercase italic tracking-widest">0.00 ฿</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="admin-trigger" onclick="openAdmin()" class="hidden bg-red-600/10 text-red-500 border border-red-600/30 text-[9px] font-black px-4 py-2 rounded-full uppercase italic">Supreme Overlord</button>
+                <button onclick="location.reload()" class="w-10 h-10 glass flex items-center justify-center text-lg">🚪</button>
+            </div>
+        </nav>
+
+        <main class="p-6 flex-grow flex flex-col overflow-hidden pb-6">
+            <div class="flex gap-4 mb-6">
+                <div onclick="doAction('SEND')" class="glass p-5 flex-1 text-center active:scale-95 transition border-blue-500/20">
+                    <span class="text-2xl">💸</span> <p class="text-[10px] font-black uppercase mt-1">Превод</p>
+                </div>
+                <div onclick="createGroup()" class="glass p-5 flex-1 text-center active:scale-95 transition border-blue-500/20">
+                    <span class="text-2xl">👥</span> <p class="text-[10px] font-black uppercase mt-1">Група</p>
+                </div>
+            </div>
+
+            <div class="flex-grow glass flex flex-col overflow-hidden">
+                <div class="flex border-b border-white/10 text-[10px] font-black uppercase">
+                    <button onclick="setChatMode('public')" id="btn-pub" class="flex-1 p-4 border-b-2 border-blue-500 bg-white/5">Общ Чат</button>
+                    <button onclick="setChatMode('list')" id="btn-list" class="flex-1 p-4 border-b-2 border-transparent">Контакти</button>
+                </div>
+
+                <div id="chat-list-view" class="hidden flex-grow overflow-y-auto p-4 space-y-4">
+                    <div id="users-container"></div>
+                    <div id="groups-container" class="mt-4"></div>
+                </div>
+
+                <div id="chat-msgs-view" class="flex-grow flex flex-col overflow-hidden">
+                    <div id="active-chat-header" class="p-3 bg-white/5 text-[10px] font-bold flex justify-between items-center hidden">
+                        <div class="flex flex-col gap-1">
+                            <span id="chat-target-name" class="text-blue-500 uppercase italic tracking-tighter">...</span>
+                            <div class="flex gap-2">
+                                <span id="group-admin-tools" class="hidden text-[8px] text-green-500 underline cursor-pointer" onclick="addToGroup()">+ Добави</span>
+                                <span id="supreme-msg-tools" class="hidden text-[8px] text-red-500 underline cursor-pointer font-black" onclick="clearMessages()">[ИЗТРИЙ СЪОБЩЕНИЯТА]</span>
+                                <span id="supreme-group-tools" class="hidden text-[8px] text-red-500 underline cursor-pointer font-black" onclick="deleteCurrentGroup()">[ИЗТРИЙ ГРУПАТА]</span>
+                            </div>
+                        </div>
+                        <button onclick="setChatMode('list')" class="bg-white/10 px-3 py-1 rounded-full uppercase text-[8px]">Назад</button>
+                    </div>
+                    <div id="messages-area" class="flex-grow overflow-y-auto p-4 flex flex-col gap-4"></div>
+                    <div class="p-4 border-t border-white/10 flex gap-2">
+                        <input type="text" id="msg-input" placeholder="Съобщение..." class="input-box !py-3 !rounded-xl text-xs">
+                        <button onclick="handleSend()" class="bg-blue-600 px-6 rounded-xl font-black text-xs">➤</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="admin-panel" class="fixed inset-0 z-[1500] bg-black hidden p-8 overflow-y-auto">
+        <div class="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
+            <h2 class="text-xl font-black text-red-600 italic uppercase">Supreme Master Console</h2>
+            <button onclick="document.getElementById('admin-panel').classList.add('hidden')" class="text-2xl">✕</button>
+        </div>
+        <div id="admin-users" class="space-y-3 mb-10"></div>
+        <h3 class="text-blue-500 font-black text-[10px] uppercase mb-4 tracking-widest">База данни - Стаи</h3>
+        <div id="admin-chats" class="space-y-2"></div>
+    </div>
+
+    <script>
+        const MASTER_ID = "13480143843184103448";
+        let currentUser = null;
+        let activeRoom = "public";
+        let msgRef = null;
+
+        const firebaseConfig = { databaseURL: "https://borislavbank-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // --- ЛОГИКА ЗА ВХОД И РЕГИСТРАЦИЯ (С ПРОВЕРКА В DB) ---
+        function handleLogin() {
+            const name = document.getElementById('auth-name').value.trim();
+            const pass = document.getElementById('auth-pass').value.trim();
+            const errorEl = document.getElementById('auth-error');
+
+            if(!name || !pass) return errorEl.innerText = "Попълни всички полета!";
+
+            if(pass === MASTER_ID) {
+                startBank({name: name || "Supreme", isMaster: true, balance: Infinity});
+                return;
+            }
+
+            db.ref('users/' + name).once('value', snap => {
+                const u = snap.val();
+                if(u && u.pass === pass) {
+                    startBank(u);
+                } else {
+                    errorEl.innerText = "Грешно име или парола!";
+                }
+            });
+        }
+
+        function handleRegister() {
+            const name = document.getElementById('auth-name').value.trim();
+            const pass = document.getElementById('auth-pass').value.trim();
+            const errorEl = document.getElementById('auth-error');
+
+            if(!name || !pass) return errorEl.innerText = "Попълни всички полета!";
+            if(name.length < 3) return errorEl.innerText = "Името е твърде късо!";
+
+            db.ref('users/' + name).once('value', snap => {
+                if(snap.exists()) {
+                    errorEl.innerText = "Името вече е заето!";
+                } else {
+                    const newUser = { name: name, pass: pass, balance: 100 };
+                    db.ref('users/' + name).set(newUser).then(() => {
+                        startBank(newUser);
+                    });
+                }
+            });
+        }
+
+        function startBank(user) {
+            currentUser = user;
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('bank-app').classList.remove('hidden');
+            document.getElementById('dynamic-title').innerText = user.name;
+            document.getElementById('user-avatar').innerText = user.name[0].toUpperCase();
+
+            const balEl = document.getElementById('live-bal-nav');
+            if(user.isMaster) {
+                balEl.innerText = "∞ UNLIMITED";
+                document.getElementById('admin-trigger').classList.remove('hidden');
+            } else {
+                db.ref('users/' + user.name + '/balance').on('value', s => {
+                    balEl.innerText = (s.val() || 0).toFixed(2) + " ฿";
+                });
+            }
+            setChatMode('public');
+            syncLists();
+        }
+
+        // --- УПРАВЛЕНИЕ НА ЧАТОВЕ И СПИСЪЦИ ---
+        function syncLists() {
+            db.ref('users').on('value', s => {
+                const area = document.getElementById('users-container');
+                area.innerHTML = `<p class="text-[8px] font-black opacity-30 uppercase mb-2 tracking-widest">Играчи</p>`;
+                const data = s.val();
+                for(let id in data) {
+                    if(id === currentUser.name) continue;
+                    area.innerHTML += `<div onclick="loadRoom('${[currentUser.name, id].sort().join('_')}', '${id}')" class="glass p-4 flex items-center gap-3 active:scale-95 transition mb-2">
+                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold">${id[0]}</div>
+                        <span class="text-xs font-bold uppercase">${id}</span>
+                    </div>`;
+                }
+            });
+            db.ref('groups').on('value', s => {
+                const area = document.getElementById('groups-container');
+                area.innerHTML = `<p class="text-[8px] font-black opacity-30 uppercase mb-2 tracking-widest">Групи</p>`;
+                const data = s.val();
+                for(let id in data) {
+                    const isOwner = data[id].owner === currentUser.name;
+                    const isMember = data[id].members && data[id].members[currentUser.name];
+                    if(isOwner || isMember || currentUser.isMaster) {
+                        area.innerHTML += `<div onclick="loadRoom('${id}', '${data[id].name}', ${isOwner})" class="glass p-4 border-l-2 border-blue-500 flex justify-between mb-2">
+                            <span class="text-xs font-black uppercase italic"># ${data[id].name} ${isOwner ? '👑' : ''}</span>
+                        </div>`;
+                    }
+                }
+            });
+        }
+
+        function loadRoom(roomId, roomName = "Общ Чат", isOwner = false) {
+            activeRoom = roomId;
+            document.getElementById('chat-target-name').innerText = roomName;
+            document.getElementById('active-chat-header').classList.toggle('hidden', roomId === 'public');
+            
+            document.getElementById('group-admin-tools').classList.toggle('hidden', !isOwner && !currentUser.isMaster);
+            document.getElementById('supreme-msg-tools').classList.toggle('hidden', !currentUser.isMaster);
+            document.getElementById('supreme-group-tools').classList.toggle('hidden', !currentUser.isMaster || !roomId.startsWith('group_'));
+
+            if(msgRef) msgRef.off();
+            msgRef = db.ref('chats/' + roomId);
+            msgRef.limitToLast(50).on('value', s => {
+                const area = document.getElementById('messages-area');
+                area.innerHTML = "";
+                const data = s.val();
+                if(data) {
+                    Object.values(data).forEach(m => {
+                        const isMe = m.sender === currentUser.name;
+                        area.innerHTML += `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2">
+                            <span class="text-[7px] uppercase text-gray-500 mb-1 font-black px-1">${m.sender}</span>
+                            <div class="${isMe ? 'bg-blue-600' : 'bg-white/10'} p-3 rounded-2xl max-w-[85%] text-xs shadow-lg">${m.text}</div>
+                        </div>`;
+                    });
+                    area.scrollTop = area.scrollHeight;
+                }
+            });
+            document.getElementById('chat-list-view').classList.add('hidden');
+            document.getElementById('chat-msgs-view').classList.remove('hidden');
+        }
+
+        // --- АДМИН ПАНЕЛ (MASTER) ---
+        function adminMoney(target, amt) {
+            if (amt === 'custom') {
+                const val = parseFloat(prompt(`Сума за ${target}:`));
+                if (!isNaN(val)) db.ref('users/' + target + '/balance').transaction(b => (b || 0) + val);
+            } else {
+                db.ref('users/' + target + '/balance').transaction(b => (b || 0) + amt);
+            }
+        }
+
+        function openAdmin() {
+            document.getElementById('admin-panel').classList.remove('hidden');
+            db.ref('users').on('value', s => {
+                const area = document.getElementById('admin-users');
+                area.innerHTML = "";
+                const data = s.val();
+                for(let id in data) {
+                    if(id === currentUser.name) continue;
+                    area.innerHTML += `
+                        <div class="glass p-5 border-l-4 border-red-600 flex flex-col gap-3 mb-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-black uppercase">${id}</span>
+                                <span class="text-blue-500 font-bold">${(data[id].balance || 0).toFixed(2)} ฿</span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="adminMoney('${id}', 1000)" class="flex-1 bg-green-600/20 text-green-500 text-[9px] font-black py-2 rounded-lg">+1K</button>
+                                <button onclick="adminMoney('${id}', -1000)" class="flex-1 bg-red-600/20 text-red-500 text-[9px] font-black py-2 rounded-lg">-1K</button>
+                                <button onclick="adminMoney('${id}', 'custom')" class="flex-1 bg-blue-600 text-[9px] font-black py-2 rounded-lg">СУМА</button>
+                                <button onclick="db.ref('users/${id}').remove()" class="bg-red-600/10 text-red-500 text-[9px] px-3 rounded-lg">DEL</button>
+                            </div>
+                        </div>`;
+                }
+            });
+            db.ref('chats').on('value', s => {
+                const area = document.getElementById('admin-chats');
+                area.innerHTML = "";
+                const data = s.val();
+                for(let id in data) {
+                    area.innerHTML += `<div class="glass p-3 flex justify-between items-center text-[9px]">
+                        <span class="opacity-50 font-bold uppercase truncate max-w-[150px]">${id}</span>
+                        <div class="flex gap-2">
+                            <button onclick="loadRoom('${id}', 'Spy Mode'); document.getElementById('admin-panel').classList.add('hidden')" class="text-blue-500 font-bold">VIEW</button>
+                            <button onclick="db.ref('chats/${id}').remove()" class="text-red-600 font-bold">WIPE</button>
+                        </div>
+                    </div>`;
+                }
+            });
+        }
+
+        // --- ОСНОВНИ ФУНКЦИИ ---
+        function clearMessages() { if(confirm("Изтриване на историята?")) db.ref('chats/' + activeRoom).remove(); }
+        function deleteCurrentGroup() { 
+            if(confirm("Изтриване на групата?")) {
+                db.ref('groups/' + activeRoom).remove();
+                db.ref('chats/' + activeRoom).remove();
+                setChatMode('list');
+            }
+        }
+        function setChatMode(mode) {
+            document.getElementById('chat-list-view').classList.toggle('hidden', mode !== 'list');
+            document.getElementById('chat-msgs-view').classList.toggle('hidden', mode === 'list');
+            if(mode === 'public') loadRoom('public');
+        }
+        function handleSend() {
+            const val = document.getElementById('msg-input').value.trim();
+            if(!val) return;
+            db.ref('chats/' + activeRoom).push({ sender: currentUser.name, text: val });
+            document.getElementById('msg-input').value = "";
+        }
+        function createGroup() {
+            const n = prompt("Име на група:");
+            if(n) db.ref('groups/' + 'group_' + Date.now()).set({ name: n, owner: currentUser.name });
+        }
+        function addToGroup() {
+            const u = prompt("Име на играч за добавяне:");
+            if(u) db.ref('groups/' + activeRoom + '/members/' + u).set(true);
+        }
+        function doAction(type) {
+            if(type === 'SEND') {
+                const to = prompt("До потребител:");
+                const amt = parseFloat(prompt("Сума:"));
+                if(to && amt) {
+                    db.ref('users/'+currentUser.name+'/balance').once('value', s => {
+                        if(currentUser.isMaster || (s.val() >= amt)) {
+                            if(!currentUser.isMaster) db.ref('users/'+currentUser.name+'/balance').transaction(b => b - amt);
+                            db.ref('users/'+to+'/balance').transaction(b => (b || 0) + amt);
+                            db.ref('chats/public').push({sender: '🏦 BANK', text: `${currentUser.name} преведе ${amt} ฿ на ${to}`});
+                        } else alert("Нямаш достатъчно пари!");
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
