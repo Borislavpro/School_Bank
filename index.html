@@ -112,7 +112,7 @@
             <button onclick="document.getElementById('admin-panel').classList.add('hidden')" class="text-2xl">✕</button>
         </div>
         <div id="admin-users" class="space-y-3 mb-10"></div>
-        <h3 class="text-blue-500 font-black text-[10px] uppercase mb-4 tracking-widest">База данни - Стаи</h3>
+        <h3 class="text-blue-500 font-black text-[10px] uppercase mb-4 tracking-widest"></h3>
         <div id="admin-chats" class="space-y-2"></div>
     </div>
 
@@ -332,3 +332,4 @@
                         if(currentUser.isMaster || (s.val() >= amt)) {
                             if(!currentUser.isMaster) db.ref('users/'+currentUser.name+'/balance').transaction(b => b - amt);
                          
+
