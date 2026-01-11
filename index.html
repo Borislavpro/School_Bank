@@ -237,14 +237,33 @@
             document.getElementById('chat-msgs-view').classList.remove('hidden');
         }
 
-        async function adminMoney(target, amt) {
+                async function adminMoney(target, amt) {
             if (amt === 'custom') {
-                const { value: val } = await Swal.fire({ title: 'СУМА ЗА ' + target, input: 'number', showCancelButton: true });
-                if (val) db.ref('users/' + target + '/balance').transaction(b => (b || 0) + parseFloat(val));
+                const { value: val } = await Swal.fire({ 
+                    title: 'СУМА ЗА ' + target, 
+                    input: 'number', 
+                    showCancelButton: true,
+                    // Това го "заковава" най-отгоре в админ панела
+                    target: document.getElementById('admin-panel')
+                });
+
+                if (val) {
+                    const amount = parseFloat(val);
+                    db.ref('users/' + target + '/balance').transaction(b => (b || 0) + amount);
+                    
+                    // Потвърждение, също върху админ панела
+                    Swal.fire({ 
+                        title: 'УСПЕХ', 
+                        text: 'Сумата е добавена!', 
+                        icon: 'success',
+                        target: document.getElementById('admin-panel')
+                    });
+                }
             } else {
                 db.ref('users/' + target + '/balance').transaction(b => (b || 0) + amt);
             }
         }
+        
 
         function openAdmin() {
             document.getElementById('admin-panel').classList.remove('hidden');
@@ -312,14 +331,4 @@
                     db.ref('users/'+currentUser.name+'/balance').once('value', s => {
                         if(currentUser.isMaster || (s.val() >= amt)) {
                             if(!currentUser.isMaster) db.ref('users/'+currentUser.name+'/balance').transaction(b => b - amt);
-                            db.ref('users/'+to+'/balance').transaction(b => (b || 0) + amt);
-                            db.ref('chats/public').push({sender: '🏦 BANK', text: `${currentUser.name} преведе ${amt} ฿ на ${to}`});
-                            Swal.fire({ title: 'УСПЕХ', text: 'Сумата е преведена!', icon: 'success' });
-                        } else { Swal.fire('ГРЕШКА', 'Нямаш достатъчно пари!', 'error'); }
-                    });
-                }
-            }
-        }
-    </script>
-</body>
-</html>
+                         
