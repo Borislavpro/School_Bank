@@ -235,12 +235,34 @@ document.getElementById('chat-msgs-view').classList.remove('hidden');
 }
 
 async function adminMoney(target, amt) {
-if (amt === 'custom') {
-const { value: val } = await Swal.fire({ title: 'СУМА ЗА ' + target, input: 'number', showCancelButton: true });
-if (val) db.ref('users/' + target + '/balance').transaction(b => (b || 0) + parseFloat(val));
-} else {
-db.ref('users/' + target + '/balance').transaction(b => (b || 0) + amt);
-}
+    if (amt === 'custom') {
+        const { value: val } = await Swal.fire({ 
+            title: 'СУМА ЗА ' + target, 
+            input: 'number', 
+            showCancelButton: true,
+            confirmButtonText: 'ПОТВЪРДИ',
+            cancelButtonText: 'ОТКАЗ',
+            // Това гарантира, че прозорецът е НАД админ панела
+            target: document.getElementById('admin-panel') 
+        });
+        
+        if (val) {
+            const numVal = parseFloat(val);
+            db.ref('users/' + target + '/balance').transaction(b => (b || 0) + numVal);
+            
+            // Потвърждение за успех (също върху админ панела)
+            Swal.fire({
+                title: 'УСПЕШНО',
+                text: `Балансът на ${target} е актуализиран!`,
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false,
+                target: document.getElementById('admin-panel')
+            });
+        }
+    } else {
+        db.ref('users/' + target + '/balance').transaction(b => (b || 0) + amt);
+    }
 }
 
 function openAdmin() {
