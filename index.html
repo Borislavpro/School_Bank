@@ -122,7 +122,7 @@
         let activeRoom = "public";
         let msgRef = null;
 
-        const firebaseConfig = { databaseURL: "https://borislavbank-default-rtdb.firebaseio.com/" };
+        const firebaseConfig = { databaseURL: "https://bbank-276cb-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
@@ -332,4 +332,5 @@
                         if(currentUser.isMaster || (s.val() >= amt)) {
                             if(!currentUser.isMaster) db.ref('users/'+currentUser.name+'/balance').transaction(b => b - amt);
                          
+
 
